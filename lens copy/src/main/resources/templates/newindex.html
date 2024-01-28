@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title> Try Frames </title>
+</head>
+<body>
+
+<div>
+    <div style="background-color: white; width: 100%; height: 100px; padding-bottom: 50px; border-bottom: tan; border-bottom-width: 20px; border-bottom-style: solid">
+        <div style="position: absolute" onclick="window.location.href='/'">
+            <img src="/images/logo.png"
+                 style="width: 340px; height: 100px; float: left; margin-left: 20px; margin-top: 10px">
+            <p style="position: relative; bottom: 30px; left: 120px; font-family: sans-serif; font-size: 1.5rem; letter-spacing: 4px">
+                Suits your style</p>
+        </div>
+        <div style="float: right; position: relative; ">
+            <ul style="list-style: none; display: inline">
+
+                <li style="display: inline-block; margin-right: 70px; margin-top: 50px; font-size: 2rem; font-family: sans-serif">
+                    <a style="text-decoration: none; color: black" onclick="window.location.href='/'"> Home </a></li>
+                <li style="display: inline-block; margin-right: 70px; margin-top: 50px; font-size: 2rem; font-family: sans-serif">
+                    <a style="text-decoration: none; color: black" onclick="window.location.href='/tryFrames'"> Try
+                        Frames </a></li>
+                <li style="display: inline-block; margin-right: 70px; margin-top: 50px; font-size: 2rem; font-family: sans-serif" onclick="window.location.href='/about'">About Us</li>
+                <li style="display: inline-block; margin-right: 70px; margin-top: 50px; font-size: 2rem; font-family: sans-serif" onclick="window.location.href='/contact'">
+                    Reach out
+                </li>
+
+            </ul>
+        </div>
+    </div>
+
+</div>
+
+<div>
+
+    <div style="
+        width: 100%;
+        height: 250px;
+        display: block;
+        position: absolute;
+        float: left">
+
+        <div style="width: 90%; position:relative; left: 140px" id="frames">
+            <div style="
+            width: 280px;
+            height: 200px;
+            background-color: white;
+            margin-top: 25px;
+            margin-left: 20px;
+            float: left;
+            border-color: dodgerblue;
+            border-width: 2px;
+            border-style: solid;
+            border-radius: 10px">
+            </div>
+
+        </div>
+
+        <div style="position:absolute; margin-top: 400px">
+            <div style="position:relative; margin: auto; float: left; display: none">
+                <video id="webcam" autoplay></video>
+            </div>
+            <div style="position:relative; top: -100px; left: 92%; float: left; background-color: red">
+                <canvas id="snapshot" style="display:none;"></canvas> <!-- Hidden canvas to draw the video frame -->
+                <img id="output"/> <!-- Image element to display the snapshot -->
+            </div>
+        </div>
+
+
+    </div>
+
+
+    <script>
+
+        // list of json objects
+
+        let frames = [
+            {
+                src: "/images/black.webp",
+                name: "black.webp",
+                marginTop: "50px",
+                buttonMargin: "-30px"
+            },
+            {
+                src: "/images/frame1.png",
+                name: "frame1.png",
+                marginTop: "30px",
+                buttonMargin: "-15px"
+            },
+            {
+                src: "/images/second.webp",
+                name: "second.webp",
+                marginTop: "60px",
+                buttonMargin: "-30px"
+            },
+            {
+                src: "/images/third.png",
+                name: "third.png",
+                marginTop: "30px",
+                buttonMargin: "-5px"
+            },
+            {
+                src: "/images/green.png",
+                name: "green.png",
+                marginTop: "30px",
+                buttonMargin: "-10px"
+            }
+        ]
+
+        document.getElementById("frames").innerHTML = frames.map(frame => {
+            return `<div style="width: 280px; height: 200px; background-color: white; margin-top: 25px; margin-left: 20px; float: left; border-color: dodgerblue; border-width: 2px; border-style: solid; border-radius: 10px" >
+            <img src="${frame.src}" style="width: 100%; margin-top: ${frame.marginTop}" />
+        <button
+        style="
+            position: relative;
+            bottom: ${frame.buttonMargin};
+            width: 240px;
+            padding: 20px;
+            font-weight: bold;
+            background-color: lightblue;
+            border: none;
+            left: 20px;
+            border-radius: 5px;"
+            onclick="changeFrame('${frame.name}')">
+            CHECK IT OUT </button>
+        </div>`
+        }).join("");
+
+
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('snapshot');
+        const context = canvas.getContext('2d');
+
+        if (navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({video: true})
+                .then(function (stream) {
+                    video.srcObject = stream;
+                    setInterval(takeSnapshot, 100); // Take a snapshot every 100ms
+                })
+                .catch(function (error) {
+                    console.log("Something went wrong!");
+                });
+        }
+
+        async function changeFrame(frameName) {
+            console.log(frameName);
+            await fetch('/frame', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({frameName: frameName})
+            });
+        }
+
+        function takeSnapshot() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight); // Draw the current video frame on the canvas
+            const imageData = canvas.toDataURL('image/jpeg'); // Convert the canvas image to Data URL
+
+            // Send the image data to the server
+            fetch('/image', { // Change the endpoint to match the one in your Spring Boot application
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({imageData: imageData})
+            })
+                .then(response => response.text()) // Expect a text response
+                .then(data => {
+                    document.getElementById('output').src = data; // Set the src attribute of the img element to the response data URI
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+        }
+    </script>
+</div>
+</body>
+</html>
